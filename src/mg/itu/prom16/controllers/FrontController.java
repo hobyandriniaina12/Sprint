@@ -40,12 +40,20 @@ public class FrontController extends HttpServlet
     }
     @Override
     protected void doGet(HttpServletRequest req, HttpServletResponse resp) throws ServletException, IOException {
-        processRequest(req, resp);
+        try {
+            processRequest(req, resp);
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
     }
 
     @Override
     protected void doPost(HttpServletRequest req, HttpServletResponse resp) throws ServletException, IOException {
-        processRequest(req, resp);
+        try {
+            processRequest(req, resp);
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
     }
 
     protected void processRequest(HttpServletRequest request, HttpServletResponse response) throws ServletException, IOException
@@ -56,10 +64,20 @@ public class FrontController extends HttpServlet
         String urlServlet = getUrlPrincipale(request);
         String ifValue = urlActuel.replaceFirst(urlServlet,"");
         Mapping mapping = map.get(ifValue);
+        String result = "";
         if (mapping != null) {
+            try {
+                Class<?> cls = Class.forName(mapping.getClassName());
+                Method method = cls.getDeclaredMethod(mapping.getMethodName());
+                Object o = cls.getDeclaredConstructor().newInstance();
+                result = (String) method.invoke(o);
+            } catch (Exception e) {
+                e.printStackTrace();            }
+            
             out.println("CHemin url : " + urlActuel);
             out.println("Nom classe : " + mapping.getClassName());
             out.println("Nom methode : "+mapping.getMethodName());
+            out.println("Valeur de retour de la methode : "+result);
         } else {
             out.println("Il n'y a pas de methode associee a ce chemin");
         }
