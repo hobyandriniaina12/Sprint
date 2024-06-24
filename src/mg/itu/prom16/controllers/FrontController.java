@@ -19,6 +19,7 @@ import jakarta.servlet.http.HttpServletResponse;
 import mg.itu.prom16.Annotation.AnnotationController;
 import mg.itu.prom16.Annotation.GET;
 import mg.itu.prom16.Util.Mapping;
+import mg.itu.prom16.Util.ModelView;
 
 public class FrontController extends HttpServlet
 {
@@ -64,20 +65,37 @@ public class FrontController extends HttpServlet
         String urlServlet = getUrlPrincipale(request);
         String ifValue = urlActuel.replaceFirst(urlServlet,"");
         Mapping mapping = map.get(ifValue);
-        String result = "";
+        // String result = "";
         if (mapping != null) {
             try {
                 Class<?> cls = Class.forName(mapping.getClassName());
                 Method method = cls.getDeclaredMethod(mapping.getMethodName());
                 Object o = cls.getDeclaredConstructor().newInstance();
-                result = (String) method.invoke(o);
+                Object objectType = method.invoke(o);
+                // verifiena oe string sa ModelView
+                if (objectType instanceof String) {
+                    out.println("CHemin url : " + urlActuel);
+                    out.println("Nom classe : " + mapping.getClassName());
+                    out.println("Nom methode : "+mapping.getMethodName());
+                    out.println("Valeur de retour de la methode : "+objectType.toString());
+                }
+                else if (objectType instanceof ModelView) {
+                    ModelView modelvView = (ModelView) objectType;
+                    String url = modelvView.getUrl();
+                    HashMap<String,Object> data = modelvView.getData();
+                    for (Map.Entry<String, Object> entry : data.entrySet()) {
+                        request.setAttribute(entry.getKey(), entry.getValue());
+                    }
+                    request.getRequestDispatcher(url).forward(request, response);
+                }
+                else {
+                    out.println("Non reconnu");
+                }
+                
             } catch (Exception e) {
                 e.printStackTrace();            }
             
-            out.println("CHemin url : " + urlActuel);
-            out.println("Nom classe : " + mapping.getClassName());
-            out.println("Nom methode : "+mapping.getMethodName());
-            out.println("Valeur de retour de la methode : "+result);
+            
         } else {
             out.println("Il n'y a pas de methode associee a ce chemin");
         }
