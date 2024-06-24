@@ -57,7 +57,7 @@ public class FrontController extends HttpServlet
         }
     }
 
-    protected void processRequest(HttpServletRequest request, HttpServletResponse response) throws ServletException, IOException
+    protected void processRequest(HttpServletRequest request, HttpServletResponse response) throws Exception
     {
         response.setContentType("text/html");
         PrintWriter out = response.getWriter();
@@ -90,6 +90,8 @@ public class FrontController extends HttpServlet
                 }
                 else {
                     out.println("Non reconnu");
+                    Exception ex=new Exception("Type de retour non reconnu");
+                    throw ex;
                 }
                 
             } catch (Exception e) {
@@ -98,6 +100,8 @@ public class FrontController extends HttpServlet
             
         } else {
             out.println("Il n'y a pas de methode associee a ce chemin");
+            Exception ex=new Exception("L'url n existe pas");
+            throw ex;
         }
         
     }
@@ -107,38 +111,53 @@ public class FrontController extends HttpServlet
         ClassLoader classLoader = Thread.currentThread().getContextClassLoader();
         String path = controllerPackage.replace('.', '/');
         URL url = classLoader.getResource(path);
-        String urlDecode = URLDecoder.decode(url.getFile(),"UTF-8");
-        File directory = new File(urlDecode);
-        if (directory.exists() && directory.isDirectory())
-        {
-            File[] files = directory.listFiles();
-            if (files != null) {
-                for (File file : files) {
-                    if (file.isFile() && file.getName().endsWith(".class")) {
-                        String className = controllerPackage + '.' + file.getName().substring(0, file.getName().lastIndexOf('.'));
-                        if (isAnnoted(className, AnnotationController.class)) {
-                            listController.add(className);
+        if (url != null) {
+            String urlDecode = URLDecoder.decode(url.getFile(),"UTF-8");
+            File directory = new File(urlDecode);
+            if (directory.exists() && directory.isDirectory())
+            {
+                File[] files = directory.listFiles();
+                if (files != null) {
+                    for (File file : files) {
+                        if (file.isFile() && file.getName().endsWith(".class")) {
+                            String className = controllerPackage + '.' + file.getName().substring(0, file.getName().lastIndexOf('.'));
+                            if (isAnnoted(className, AnnotationController.class)) {
+                                listController.add(className);
+                            }
+                        }
+                    }
+                }
+                else{
+                    Exception ex=new Exception("package vide");
+                    throw ex;
+                }
+                // mitety anle controleur de mijery ny methodeny
+                for (String controller : listController) {
+                    // Charger la classe à partir du fichier
+                    Class<?> clazz = Class.forName(controller); // Supprime l'extension.class
+                    Method[] methods = clazz.getMethods();
+                    for (Method method : methods) {
+                        if (method.isAnnotationPresent(GET.class)) {
+                            String nomController = clazz.getName();
+                            String nomMethode = method.getName();
+                            String urlValue = method.getAnnotation(GET.class).value();
+                            Mapping mapping = new Mapping(nomController,nomMethode);
+                            if (map.containsKey(urlValue)) {
+                                Exception ex=new Exception("2 fonctions ont le meme url");
+                                throw ex;
+                            }
+                            else{
+                                map.put(urlValue, mapping);
+                            }
                         }
                     }
                 }
             }
         }
-        // mitety anle controleur de mijery ny methodeny
-        for (String controller : listController) {
-            // Charger la classe à partir du fichier
-            Class<?> clazz = Class.forName(controller); // Supprime l'extension.class
-            Method[] methods = clazz.getMethods();
-            for (Method method : methods) {
-                if (method.isAnnotationPresent(GET.class)) {
-                    String nomController = clazz.getName();
-                    String nomMethode = method.getName();
-                    String urlValue = method.getAnnotation(GET.class).value();
-                    Mapping mapping = new Mapping(nomController,nomMethode);
-                    map.put(urlValue, mapping);
-                }
-            }
+        else{
+            Exception ex=new Exception("package vide ou  non existant");
+                throw ex;
         }
-
     }
     private static boolean isAnnoted(String className, Class<? extends Annotation> annotation) {
         try {
