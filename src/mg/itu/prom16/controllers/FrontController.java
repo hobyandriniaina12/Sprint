@@ -5,12 +5,14 @@ import java.io.IOException;
 import java.io.PrintWriter;
 import java.lang.annotation.Annotation;
 import java.lang.reflect.Method;
+import java.lang.reflect.Parameter;
 import java.net.URL;
 import java.net.URLDecoder;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Vector;
 
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServlet;
@@ -18,6 +20,7 @@ import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import mg.itu.prom16.Annotation.AnnotationController;
 import mg.itu.prom16.Annotation.GET;
+import mg.itu.prom16.Annotation.Param;
 import mg.itu.prom16.Util.Mapping;
 import mg.itu.prom16.Util.ModelView;
 
@@ -69,9 +72,31 @@ public class FrontController extends HttpServlet
         if (mapping != null) {
             try {
                 Class<?> cls = Class.forName(mapping.getClassName());
-                Method method = cls.getDeclaredMethod(mapping.getMethodName());
+                Method method = mapping.getMethod();
                 Object o = cls.getDeclaredConstructor().newInstance();
-                Object objectType = method.invoke(o);
+                Object objectType = new Object();
+                // verifier=na oe misy argument ve le fonction
+                if (method.getParameterCount() != 0) {
+                    Parameter[] parameters = method.getParameters();
+                    Object[] arguments = new Object[parameters.length];
+
+                    for (int i = 0; i < parameters.length; i++) {
+                        Param paramAnnotation = parameters[i].getAnnotation(Param.class);
+                        if (paramAnnotation != null) {
+                            String paramName = paramAnnotation.name();
+                            arguments[i] = request.getParameter(paramName);
+                        }
+                        else{
+                            arguments[i] = request.getParameter(parameters[i].getName());
+                        }
+                    }
+                    objectType = method.invoke(o, arguments);
+                    
+                }
+                else{
+                    objectType = method.invoke(o);
+                }
+                
                 // verifiena oe string sa ModelView
                 if (objectType instanceof String) {
                     out.println("CHemin url : " + urlActuel);
@@ -111,6 +136,7 @@ public class FrontController extends HttpServlet
         ClassLoader classLoader = Thread.currentThread().getContextClassLoader();
         String path = controllerPackage.replace('.', '/');
         URL url = classLoader.getResource(path);
+        System.out.println("url : "+url);
         if (url != null) {
             String urlDecode = URLDecoder.decode(url.getFile(),"UTF-8");
             File directory = new File(urlDecode);
@@ -142,17 +168,20 @@ public class FrontController extends HttpServlet
                             String nomMethode = method.getName();
                             String urlValue = method.getAnnotation(GET.class).value();
                             Mapping mapping = new Mapping(nomController,nomMethode);
+                            mapping.setMethod(method);
                             if (map.containsKey(urlValue)) {
                                 Exception ex=new Exception("2 fonctions ont le meme url");
                                 throw ex;
                             }
                             else{
                                 map.put(urlValue, mapping);
+                                System.out.println("Une methode : "+urlValue);
                             }
                         }
                     }
                 }
             }
+            System.out.println("Nombre de methode : "+map.size());
         }
         else{
             Exception ex=new Exception("package vide ou  non existant");
@@ -185,4 +214,5 @@ public class FrontController extends HttpServlet
         return url.toString();
     }
 
+    
 }
