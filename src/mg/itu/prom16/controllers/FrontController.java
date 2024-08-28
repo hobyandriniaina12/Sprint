@@ -12,7 +12,6 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Vector;
 
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServlet;
@@ -24,7 +23,7 @@ import mg.itu.prom16.Annotation.Param;
 import mg.itu.prom16.Util.Mapping;
 import mg.itu.prom16.Util.ModelView;
 
-public class FrontController extends HttpServlet
+public class FrontController7 extends HttpServlet
 {
     String controllerPackage;   //spirnt1
     List<String> listController;    //sprint1
