@@ -22,9 +22,14 @@ import mg.itu.prom16.Annotation.AnnotationController;
 import mg.itu.prom16.Annotation.Attribut;
 import mg.itu.prom16.Annotation.GET;
 import mg.itu.prom16.Annotation.Param;
+import mg.itu.prom16.Annotation.ResponseBody;
+import mg.itu.prom16.Annotation.RestController;
 import mg.itu.prom16.Util.Mapping;
 import mg.itu.prom16.Util.ModelView;
 import mg.itu.prom16.Util.Session;
+
+import com.google.gson.Gson;
+
 
 public class FrontController extends HttpServlet
 {
@@ -32,6 +37,7 @@ public class FrontController extends HttpServlet
     List<String> listController;    //sprint1
     Map<String, Mapping> map = new HashMap<>();
     String servletPath = "";
+
     @Override
     public void init() throws ServletException {
         super.init();
@@ -71,40 +77,61 @@ public class FrontController extends HttpServlet
         String ifValue = urlActuel.replaceFirst(urlServlet,"");
         Mapping mapping = map.get(ifValue);
 
-        // String result = "";
         if (mapping != null) {
             Class<?> cls = Class.forName(mapping.getClassName());
             Method method = mapping.getMethod();
+            boolean existResponseBody = false;
+            if (method.isAnnotationPresent(ResponseBody.class)) {
+                existResponseBody = true;
+            }
             Object o = cls.getDeclaredConstructor().newInstance();
             Object objectType;
             // verifier=na oe misy argument ve le fonction
             if (method.getParameterCount() != 0) {
-                objectType = invokeMethodeWithParametres(method, request, o);
+                    objectType = invokeMethodeWithParametres(method, request, o);
             }
             else{
-                objectType = method.invoke(o);
+                    objectType = method.invoke(o);
             }
             
             // verifiena oe string sa ModelView
-            if (objectType instanceof String) {
-                out.println("CHemin url : " + urlActuel);
-                out.println("Nom classe : " + mapping.getClassName());
-                out.println("Nom methode : "+mapping.getMethodName());
-                out.println("Valeur de retour de la methode : "+objectType.toString());
-            }
-            else if (objectType instanceof ModelView) {
+            if (objectType instanceof ModelView) {
                 ModelView modelvView = (ModelView) objectType;
                 String url = modelvView.getUrl();
                 HashMap<String,Object> data = modelvView.getData();
                 for (Map.Entry<String, Object> entry : data.entrySet()) {
                     request.setAttribute(entry.getKey(), entry.getValue());
                 }
-                request.getRequestDispatcher(url).forward(request, response);
+                if (cls.isAnnotationPresent(RestController.class) && existResponseBody == false) {
+                    out.println("Json: "+ modelvView.toJson());
+                }
+                else{
+                    request.getRequestDispatcher(url).forward(request, response);
+                }
             }
-            else {
-                out.println("Non reconnu");
-                Exception ex=new Exception("Type de retour non reconnu");
-                throw ex;
+            else if(objectType instanceof String){
+                out.println("CHemin url : " + urlActuel);
+                out.println("Nom classe : " + mapping.getClassName());
+                out.println("Nom methode : "+mapping.getMethodName());
+                if (cls.isAnnotationPresent(RestController.class) && existResponseBody == false) {
+                    Gson gson = new Gson();
+                    out.println("Json: "+ gson.toJson(objectType));
+                }
+                else{
+                    out.println("Retour : "+ objectType);
+                }
+                
+            }
+            else{
+                if (cls.isAnnotationPresent(RestController.class) && existResponseBody == false) {
+                    Gson gson = new Gson();
+                    out.println("Json: "+ gson.toJson(objectType));
+                }
+                else{
+                    out.println("Non reconnu");
+                    Exception ex=new Exception("Type de retour non reconnu");
+                    throw ex;    
+                }
             }
             
         } else {
@@ -131,7 +158,7 @@ public class FrontController extends HttpServlet
                     for (File file : files) {
                         if (file.isFile() && file.getName().endsWith(".class")) {
                             String className = controllerPackage + '.' + file.getName().substring(0, file.getName().lastIndexOf('.'));
-                            if (isAnnoted(className, AnnotationController.class)) {
+                            if (isAnnoted(className, AnnotationController.class) || isAnnoted(className, RestController.class)) {
                                 listController.add(className);
                             }
                         }
@@ -244,18 +271,3 @@ public class FrontController extends HttpServlet
                 
     }
 }
-// Resaka session (http session)
-// tsy mampiasasession anaty test
-// boite noir : tsy tokony fatatrolona oe mampias http session
-
-// Page1
-
-// login:
-//     -user
-//     -pwd
-//     -> save()
-
-// Page2
-// user -> get() -> notes
-
-// deconnecter -> remove()
