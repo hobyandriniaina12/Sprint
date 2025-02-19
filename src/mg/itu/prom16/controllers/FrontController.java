@@ -24,6 +24,7 @@ import mg.itu.prom16.Annotation.GET;
 import mg.itu.prom16.Annotation.Param;
 import mg.itu.prom16.Util.Mapping;
 import mg.itu.prom16.Util.ModelView;
+import mg.itu.prom16.Util.Session;
 
 public class FrontController extends HttpServlet
 {
@@ -202,6 +203,10 @@ public class FrontController extends HttpServlet
                 Object[] arguments = new Object[parameters.length];
 
                 for (int i = 0; i < parameters.length; i++) {
+                    if (parameters[i].getType().isAssignableFrom(Session.class)) {  
+                        arguments[i] = new Session(request);
+                        continue;
+                    }
                     Param paramAnnotation = parameters[i].getAnnotation(Param.class);
                     Class<?> type = parameters[i].getType();
                     if (!type.equals(String.class)) {
@@ -239,3 +244,18 @@ public class FrontController extends HttpServlet
                 
     }
 }
+// Resaka session (http session)
+// tsy mampiasasession anaty test
+// boite noir : tsy tokony fatatrolona oe mampias http session
+
+// Page1
+
+// login:
+//     -user
+//     -pwd
+//     -> save()
+
+// Page2
+// user -> get() -> notes
+
+// deconnecter -> remove()
