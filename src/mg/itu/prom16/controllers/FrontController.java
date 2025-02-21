@@ -21,6 +21,7 @@ import jakarta.servlet.http.HttpServletResponse;
 import mg.itu.prom16.Annotation.AnnotationController;
 import mg.itu.prom16.Annotation.Attribut;
 import mg.itu.prom16.Annotation.GET;
+import mg.itu.prom16.Annotation.POST;
 import mg.itu.prom16.Annotation.Param;
 import mg.itu.prom16.Annotation.ResponseBody;
 import mg.itu.prom16.Annotation.RestController;
@@ -46,14 +47,14 @@ public class FrontController extends HttpServlet
         try {
             scanner();
         } catch (Exception e) {
-            e.printStackTrace();
+            throw new ServletException("Erreur de mapping des URLs : " + e.getMessage(), e);
         }
 
     }
     @Override
     protected void doGet(HttpServletRequest req, HttpServletResponse resp) throws ServletException, IOException {
         try {
-            processRequest(req, resp);
+            processRequest(req, resp,"GET");
         } catch (Exception e) {
             throw new ServletException(e);
         }
@@ -62,13 +63,13 @@ public class FrontController extends HttpServlet
     @Override
     protected void doPost(HttpServletRequest req, HttpServletResponse resp) throws ServletException, IOException {
         try {
-            processRequest(req, resp);
+            processRequest(req, resp,"POST");
         } catch (Exception e) {
             throw new ServletException(e);
         }
     }
 
-    protected void processRequest(HttpServletRequest request, HttpServletResponse response) throws Exception
+    protected void processRequest(HttpServletRequest request, HttpServletResponse response,String verb) throws Exception
     {
         response.setContentType("text/html");
         PrintWriter out = response.getWriter();
@@ -79,7 +80,7 @@ public class FrontController extends HttpServlet
 
         if (mapping != null) {
             Class<?> cls = Class.forName(mapping.getClassName());
-            Method method = mapping.getMethod();
+            Method method = mapping.getMethod(verb);
             boolean existResponseBody = false;
             if (method.isAnnotationPresent(ResponseBody.class)) {
                 existResponseBody = true;
@@ -128,16 +129,12 @@ public class FrontController extends HttpServlet
                     out.println("Json: "+ gson.toJson(objectType));
                 }
                 else{
-                    out.println("Non reconnu");
-                    Exception ex=new Exception("Type de retour non reconnu");
-                    throw ex;    
+                    throw new ServletException("Type de retour non reconnu");    
                 }
             }
             
         } else {
-            out.println("Il n'y a pas de methode associee a ce chemin");
-            Exception ex=new Exception("L'url n existe pas");
-            throw ex;
+            throw new ServletException("L'url n existe pas");
         }
         
     }
@@ -147,7 +144,6 @@ public class FrontController extends HttpServlet
         ClassLoader classLoader = Thread.currentThread().getContextClassLoader();
         String path = controllerPackage.replace('.', '/');
         URL url = classLoader.getResource(path);
-        System.out.println("url : "+url);
         if (url != null) {
             String urlDecode = URLDecoder.decode(url.getFile(),"UTF-8");
             File directory = new File(urlDecode);
@@ -165,38 +161,63 @@ public class FrontController extends HttpServlet
                     }
                 }
                 else{
-                    Exception ex=new Exception("package vide");
-                    throw ex;
+                    throw new ServletException("Package des controllers vide");
                 }
                 // mitety anle controleur de mijery ny methodeny
                 for (String controller : listController) {
                     // Charger la classe à partir du fichier
                     Class<?> clazz = Class.forName(controller); // Supprime l'extension.class
-                    Method[] methods = clazz.getMethods();
+                    Method[] methods = clazz.getDeclaredMethods();
+                    int l = 0;
                     for (Method method : methods) {
+                        l++;
+                        String nomController = clazz.getName();
+                        String nomMethode = method.getName();
                         if (method.isAnnotationPresent(GET.class)) {
-                            String nomController = clazz.getName();
-                            String nomMethode = method.getName();
-                            String urlValue = method.getAnnotation(GET.class).value();
-                            Mapping mapping = new Mapping(nomController,nomMethode);
-                            mapping.setMethod(method);
+                            String urlValue = method.getAnnotation(GET.class).value(); // le url anle get
                             if (map.containsKey(urlValue)) {
-                                Exception ex=new Exception("2 fonctions ont le meme url");
-                                throw ex;
+                                if (!map.get(urlValue).haveGet()) {
+                                    map.get(urlValue).addMethod("GET", method);
+                                }
+                                else{
+                                    throw new ServletException("Erreur 409 : Deux fonctions ont le même URL GET : " + urlValue);                                }
                             }
                             else{
+                                Mapping mapping = new Mapping(nomController,nomMethode);
+                                mapping.addMethod("GET", method);    
                                 map.put(urlValue, mapping);
-                                System.out.println("Une methode : "+urlValue);
+                            }
+                        }
+                        else if (method.isAnnotationPresent(POST.class)) {
+                            String urlValue = method.getAnnotation(POST.class).value(); // le url anle get
+                            if (map.containsKey(urlValue)) {
+                                if (!map.get(urlValue).havePost()) {
+                                    map.get(urlValue).addMethod("POST", method);
+                                }
+                                else{
+                                    throw new ServletException("Erreur 409 : Deux fonctions ont le même URL POST : " + urlValue);
+                                }
+                            }
+                            else{
+                                Mapping mapping = new Mapping(nomController,nomMethode);
+                                mapping.addMethod("POST", method);    
+                                map.put(urlValue, mapping);
                             }
                         }
                     }
                 }
             }
-            System.out.println("Nombre de methode : "+map.size());
         }
         else{
-            Exception ex=new Exception("package vide ou  non existant");
-                throw ex;
+            throw new ServletException("package vide ou  non existant");
+        }
+    }
+
+    private static void verifyVerb(String url,Map<String, Mapping> map)
+    {
+        if (map.containsKey(url)) {
+            Mapping mapping = map.get(url);
+
         }
     }
     private static boolean isAnnoted(String className, Class<? extends Annotation> annotation) {
