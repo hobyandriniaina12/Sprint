@@ -66,6 +66,7 @@ public class FrontController extends HttpServlet
             processRequest(req, resp,"POST");
         } catch (Exception e) {
             throw new ServletException(e);
+            
         }
     }
 
@@ -81,6 +82,11 @@ public class FrontController extends HttpServlet
         if (mapping != null) {
             Class<?> cls = Class.forName(mapping.getClassName());
             Method method = mapping.getMethod(verb);
+            if (method == null) {
+                // throw new ServletException("pas de methode "+verb+" pour cette url");
+                response.sendError(HttpServletResponse.SC_NOT_FOUND, "pas de methode "+verb+" pour cette url");
+                return;
+            }
             boolean existResponseBody = false;
             if (method.isAnnotationPresent(ResponseBody.class)) {
                 existResponseBody = true;
@@ -134,7 +140,8 @@ public class FrontController extends HttpServlet
             }
             
         } else {
-            throw new ServletException("L'url n existe pas");
+            response.sendError(HttpServletResponse.SC_NOT_FOUND, "L'url n existe pas");
+            return;
         }
         
     }
@@ -180,7 +187,7 @@ public class FrontController extends HttpServlet
                                     map.get(urlValue).addMethod("GET", method);
                                 }
                                 else{
-                                    throw new ServletException("Erreur 409 : Deux fonctions ont le même URL GET : " + urlValue);                                }
+                                    throw new ServletException("Deux fonctions ont le même URL GET : " + urlValue);                                }
                             }
                             else{
                                 Mapping mapping = new Mapping(nomController,nomMethode);
@@ -195,7 +202,7 @@ public class FrontController extends HttpServlet
                                     map.get(urlValue).addMethod("POST", method);
                                 }
                                 else{
-                                    throw new ServletException("Erreur 409 : Deux fonctions ont le même URL POST : " + urlValue);
+                                    throw new ServletException("Deux fonctions ont le même URL POST : " + urlValue);
                                 }
                             }
                             else{

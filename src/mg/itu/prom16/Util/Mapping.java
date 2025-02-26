@@ -57,15 +57,8 @@ public class Mapping
         this.methodName = methodName;
     }
 
-
-
     public Mapping() {
     }
-
-    // public Mapping(String className, Method methodName) {
-    //     this.className = className;
-    //     this.method = methodName;
-    // }
 
     public String getClassName() {
         return className;
@@ -73,4 +66,5 @@ public class Mapping
     public void setClassName(String className) {
         this.className = className;
     }
+    
 }
