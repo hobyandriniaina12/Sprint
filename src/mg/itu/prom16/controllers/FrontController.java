@@ -14,6 +14,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
+import jakarta.servlet.http.Part;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServlet;
 import jakarta.servlet.http.HttpServletRequest;
@@ -28,14 +29,16 @@ import mg.itu.prom16.Annotation.RestController;
 import mg.itu.prom16.Util.Mapping;
 import mg.itu.prom16.Util.ModelView;
 import mg.itu.prom16.Util.Session;
+import mg.itu.prom16.Util.Validation;
+import mg.itu.prom16.Util.Multipart;
 
 import com.google.gson.Gson;
 
 
 public class FrontController extends HttpServlet
 {
-    String controllerPackage;   //spirnt1
-    List<String> listController;    //sprint1
+    String controllerPackage;   
+    List<String> listController;   
     Map<String, Mapping> map = new HashMap<>();
     String servletPath = "";
 
@@ -220,13 +223,6 @@ public class FrontController extends HttpServlet
         }
     }
 
-    private static void verifyVerb(String url,Map<String, Mapping> map)
-    {
-        if (map.containsKey(url)) {
-            Mapping mapping = map.get(url);
-
-        }
-    }
     private static boolean isAnnoted(String className, Class<? extends Annotation> annotation) {
         try {
             Class<?> cls = Class.forName(className);
@@ -264,34 +260,67 @@ public class FrontController extends HttpServlet
                     }
                     Param paramAnnotation = parameters[i].getAnnotation(Param.class);
                     Class<?> type = parameters[i].getType();
-                    if (!type.equals(String.class)) {
+                    //  si de type part
+                    if (type.equals(Part.class)) {
+                        String paramName = (paramAnnotation != null) ? paramAnnotation.name() : parameters[i].getName();
+                        arguments[i] = request.getPart(paramName);
+                        continue;
+                    }
+                    
+                    if (type.equals(String.class)) {
+                        if (paramAnnotation != null) {
+                            String paramName = paramAnnotation.name();
+                            arguments[i] = request.getParameter(paramName);
+                            Validation.valider(parameters[i], arguments[i]);
+                        }
+                        else{
+                            arguments[i] = request.getParameter(parameters[i].getName());
+                            Validation.valider(parameters[i], arguments[i]);
+                        }
+                    }
+                    else if (type.equals(Integer.class)) {
+                        String str = request.getParameter(paramAnnotation.name());
+                        if(str != null && !str.isEmpty()) {
+                            arguments[i] = Integer.parseInt(str);
+                        }
+                        else{
+                            arguments[i] = null;
+                        }
+                        Validation.valider(parameters[i], arguments[i]);
+                    }
+                    else {
                         Object object = type.getDeclaredConstructor().newInstance();
                         Field[] fields = object.getClass().getDeclaredFields(); 
                         for (Field field : fields) {
-                            String name = field.getDeclaredAnnotation(Attribut.class).value();
                             field.setAccessible(true);
+                            String name = field.getDeclaredAnnotation(Attribut.class).value();
+                            String str = request.getParameter(paramAnnotation.name() + "."+ name); 
                             if (field.getType().equals(Integer.class) ||  field.getType().equals(int.class)) {
-                                field.set(object, Integer.parseInt(request.getParameter(paramAnnotation.name() + "."+ name)));
-                                
+                                if(str != null && !str.isEmpty()) {
+                                    field.set(object, Integer.parseInt(str));
+                                    Validation.validerObjet(object,field);
+                                }
+                                else{
+                                    Validation.validerObject(null, field);
+                                }
                             }
                             else if (field.getType().equals(Double.class) || field.getType().equals(double.class)) {
-                                field.set(object, Double.parseDouble(request.getParameter(paramAnnotation.name() + "."+ name)));
+                                if(str != null && !str.isEmpty()) {
+                                    field.set(object, Double.parseDouble(str));
+                                    Validation.validerObjet(object,field);
+                                }
+                                else{
+                                    Validation.validerObject(null, field);
+                                }
                             }
                             else {
-                                field.set(object, request.getParameter(paramAnnotation.name() + "."+ name));
+                                field.set(object, str);
+                                Validation.validerObject(str, field);
                             }
                             field.setAccessible(false);
                         }
                         arguments[i] = object;
-                    }
-                    else{
-                        if (paramAnnotation != null) {
-                            String paramName = paramAnnotation.name();
-                            arguments[i] = request.getParameter(paramName);
-                        }
-                        else{
-                            arguments[i] = request.getParameter(parameters[i].getName());
-                        }
+                        Validation.valider(parameters[i], arguments[i]);
                     }
                     
                 }
