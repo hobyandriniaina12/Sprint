@@ -14,6 +14,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
+import jakarta.servlet.http.Part;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServlet;
 import jakarta.servlet.http.HttpServletRequest;
@@ -28,14 +29,16 @@ import mg.itu.prom16.Annotation.RestController;
 import mg.itu.prom16.Util.Mapping;
 import mg.itu.prom16.Util.ModelView;
 import mg.itu.prom16.Util.Session;
+import mg.itu.prom16.Util.Validation;
+import mg.itu.prom16.Util.Multipart;
 
 import com.google.gson.Gson;
 
 
 public class FrontController extends HttpServlet
 {
-    String controllerPackage;   //spirnt1
-    List<String> listController;    //sprint1
+    String controllerPackage;   
+    List<String> listController;   
     Map<String, Mapping> map = new HashMap<>();
     String servletPath = "";
 
@@ -220,13 +223,6 @@ public class FrontController extends HttpServlet
         }
     }
 
-    private static void verifyVerb(String url,Map<String, Mapping> map)
-    {
-        if (map.containsKey(url)) {
-            Mapping mapping = map.get(url);
-
-        }
-    }
     private static boolean isAnnoted(String className, Class<? extends Annotation> annotation) {
         try {
             Class<?> cls = Class.forName(className);
@@ -264,15 +260,23 @@ public class FrontController extends HttpServlet
                     }
                     Param paramAnnotation = parameters[i].getAnnotation(Param.class);
                     Class<?> type = parameters[i].getType();
+
+                    //  si de type part
+                    if (type.equals(Part.class)) {
+                        String paramName = (paramAnnotation != null) ? paramAnnotation.name() : parameters[i].getName();
+                        arguments[i] = request.getPart(paramName);
+                        continue;
+                    }
+
                     if (!type.equals(String.class)) {
                         Object object = type.getDeclaredConstructor().newInstance();
+                        Validation.valider(parameters[i], object);
                         Field[] fields = object.getClass().getDeclaredFields(); 
                         for (Field field : fields) {
                             String name = field.getDeclaredAnnotation(Attribut.class).value();
                             field.setAccessible(true);
                             if (field.getType().equals(Integer.class) ||  field.getType().equals(int.class)) {
                                 field.set(object, Integer.parseInt(request.getParameter(paramAnnotation.name() + "."+ name)));
-                                
                             }
                             else if (field.getType().equals(Double.class) || field.getType().equals(double.class)) {
                                 field.set(object, Double.parseDouble(request.getParameter(paramAnnotation.name() + "."+ name)));
@@ -285,6 +289,9 @@ public class FrontController extends HttpServlet
                         arguments[i] = object;
                     }
                     else{
+                        Object object = type.getDeclaredConstructor().newInstance();
+                        Validation.valider(parameters[i], object);
+
                         if (paramAnnotation != null) {
                             String paramName = paramAnnotation.name();
                             arguments[i] = request.getParameter(paramName);
