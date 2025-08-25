@@ -267,38 +267,64 @@ public class FrontController extends HttpServlet
                         arguments[i] = request.getPart(paramName);
                         continue;
                     }
+                    
+                    if (type.equals(String.class)) {
+                        if (paramAnnotation != null) {
+                            String paramName = paramAnnotation.name();
+                            arguments[i] = request.getParameter(paramName);
+                            Validation.valider(parameters[i], arguments[i]);
+                        }
+                        else{
+                            arguments[i] = request.getParameter(parameters[i].getName());
+                            Validation.valider(parameters[i], arguments[i]);
+                        }
+                    }
+                    else if (type.equals(Integer.class)) {
+                        String str = request.getParameter(paramAnnotation.name());
+                        if(str != null && !str.isEmpty()) {
+                            arguments[i] = Integer.parseInt(str);
+                        }
+                        else{
+                            arguments[i] = null;
+                        }
+                        Validation.valider(parameters[i], arguments[i]);
+                    }
+                    else {
 
-                    if (!type.equals(String.class)) {
                         Object object = type.getDeclaredConstructor().newInstance();
                         Validation.valider(parameters[i], object);
                         Field[] fields = object.getClass().getDeclaredFields(); 
                         for (Field field : fields) {
-                            String name = field.getDeclaredAnnotation(Attribut.class).value();
                             field.setAccessible(true);
+                            String name = field.getDeclaredAnnotation(Attribut.class).value();
+                            String str = request.getParameter(paramAnnotation.name() + "."+ name); 
                             if (field.getType().equals(Integer.class) ||  field.getType().equals(int.class)) {
-                                field.set(object, Integer.parseInt(request.getParameter(paramAnnotation.name() + "."+ name)));
+                                if(str != null && !str.isEmpty()) {
+                                    field.set(object, Integer.parseInt(str));
+                                    Validation.validerObjet(object,field);
+                                }
+                                else{
+                                    Validation.validerObject(null, field);
+                                }
                             }
                             else if (field.getType().equals(Double.class) || field.getType().equals(double.class)) {
-                                field.set(object, Double.parseDouble(request.getParameter(paramAnnotation.name() + "."+ name)));
+                                if(str != null && !str.isEmpty()) {
+                                    field.set(object, Double.parseDouble(str));
+                                    Validation.validerObjet(object,field);
+                                }
+                                else{
+                                    Validation.validerObject(null, field);
+                                }
                             }
                             else {
-                                field.set(object, request.getParameter(paramAnnotation.name() + "."+ name));
+                                field.set(object, str);
+                                Validation.validerObject(str, field);
                             }
                             field.setAccessible(false);
                         }
                         arguments[i] = object;
-                    }
-                    else{
-                        Object object = type.getDeclaredConstructor().newInstance();
-                        Validation.valider(parameters[i], object);
+                        Validation.valider(parameters[i], arguments[i]);
 
-                        if (paramAnnotation != null) {
-                            String paramName = paramAnnotation.name();
-                            arguments[i] = request.getParameter(paramName);
-                        }
-                        else{
-                            arguments[i] = request.getParameter(parameters[i].getName());
-                        }
                     }
                     
                 }
