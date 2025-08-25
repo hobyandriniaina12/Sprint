@@ -260,6 +260,7 @@ public class FrontController extends HttpServlet
                     }
                     Param paramAnnotation = parameters[i].getAnnotation(Param.class);
                     Class<?> type = parameters[i].getType();
+
                     //  si de type part
                     if (type.equals(Part.class)) {
                         String paramName = (paramAnnotation != null) ? paramAnnotation.name() : parameters[i].getName();
@@ -289,7 +290,9 @@ public class FrontController extends HttpServlet
                         Validation.valider(parameters[i], arguments[i]);
                     }
                     else {
+
                         Object object = type.getDeclaredConstructor().newInstance();
+                        Validation.valider(parameters[i], object);
                         Field[] fields = object.getClass().getDeclaredFields(); 
                         for (Field field : fields) {
                             field.setAccessible(true);
@@ -321,6 +324,7 @@ public class FrontController extends HttpServlet
                         }
                         arguments[i] = object;
                         Validation.valider(parameters[i], arguments[i]);
+
                     }
                     
                 }
